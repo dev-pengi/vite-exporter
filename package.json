@@ -1,15 +1,17 @@
 {
   "name": "vite-exporter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A vite plugin that auto-generate index files to make exports/imports more readable and centralized",
   "author": "Sifedine haboul",
+  "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/organizations/dev-pengi/vite-exporter"
+    "url": "https://github.com/dev-pengi/vite-exporter"
   },
-  "main": "dist/plugin.js",
-  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist"
   ],

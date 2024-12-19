@@ -1,5 +1,4 @@
 {
-  "include": ["src"],
   "compilerOptions": {
     "declaration": true,
     "declarationDir": "./dist/types",
@@ -10,9 +9,11 @@
     "noUnusedLocals": true,
     "outDir": "dist",
     "skipLibCheck": true,
-		"isolatedModules": true,
+    "isolatedModules": true,
     "strict": true,
+    "allowSyntheticDefaultImports": true,
     "jsx": "react-jsx"
   },
+  "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }
