@@ -1,0 +1,39 @@
+{
+  "name": "vite-exporter",
+  "version": "0.1.0",
+  "description": "A vite plugin that auto-generate index files to make exports/imports more readable and centralized",
+  "author": "Sifedine haboul",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/organizations/dev-pengi/vite-exporter"
+  },
+  "main": "dist/plugin.js",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepare": "yarn build",
+    "changeset": "changeset"
+  },
+  "peerDependencies": {
+    "vite": ">2.0.0-0"
+  },
+  "dependencies": {
+    "changeset": "^0.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^14.14.20",
+    "@typescript-eslint/parser": "^8.16.0",
+    "prettier": "^2.0.5",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.1",
+    "@changesets/cli": "^2.18.0"
+  },
+  "keywords": [
+    "vite",
+    "vite-plugin"
+  ]
+}
