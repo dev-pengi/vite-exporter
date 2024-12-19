@@ -4,15 +4,15 @@
     "declarationDir": "./dist/types",
     "esModuleInterop": true,
     "lib": ["ES2020", "DOM"],
-    "target": "es2020",
-    "moduleResolution": "bundler",
+    "target": "ES2015",
     "noUnusedLocals": true,
     "outDir": "dist",
     "skipLibCheck": true,
     "isolatedModules": true,
-    "strict": true,
-    "allowSyntheticDefaultImports": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "allowSyntheticDefaultImports": true
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

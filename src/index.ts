@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { parse } from "@typescript-eslint/parser";
 import { HEADER } from "./constants.js";
-import { Plugin } from "vite";
+// import { Plugin } from "vite";
 
 const matchExclusion = (filePath: string, exclusions?: string[]): boolean => {
   if (!exclusions || typeof exclusions !== "object") return false;
@@ -104,7 +104,7 @@ export type ExporterOptions = {
   excludes?: string[];
 };
 
-export function generateIndexPlugin(options: ExporterOptions): Plugin {
+export function generateIndexPlugin(options: ExporterOptions): any {
   return {
     name: "vite-exporter-plugin",
     apply: "serve",
