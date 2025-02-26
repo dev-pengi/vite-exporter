@@ -2,13 +2,19 @@ import fs from "fs";
 import path from "path";
 import { parse } from "@typescript-eslint/parser";
 import { HEADER } from "./constants.js";
-// import { Plugin } from "vite";
+
+const exportCache = new Map<
+  string,
+  { mtime: Date; hasDefault: boolean; hasNamed: boolean }
+>();
+
+const directoryCache = new Map<string, Set<string>>();
 
 const matchExclusion = (filePath: string, exclusions?: string[]): boolean => {
-  if (!exclusions || typeof exclusions !== "object") return false;
-  return exclusions.some((excludePattern) => {
+  if (!exclusions || !Array.isArray(exclusions)) return false;
+  return exclusions.some((pattern) => {
     const regex = new RegExp(
-      excludePattern.replace(/\*/g, ".*").replace(/\//g, "\\/")
+      pattern.replace(/\*/g, ".*").replace(/\//g, "\\/")
     );
     return regex.test(filePath);
   });
@@ -17,56 +23,73 @@ const matchExclusion = (filePath: string, exclusions?: string[]): boolean => {
 const analyzeExports = (
   filePath: string
 ): { hasDefault: boolean; hasNamed: boolean } => {
-  const content = fs.readFileSync(filePath, "utf8");
+  try {
+    const stats = fs.statSync(filePath);
+    const cached = exportCache.get(filePath);
 
-  let jsx = false;
-
-  if (filePath.endsWith(".tsx") || filePath.endsWith(".jsx")) jsx = true;
-
-  const parsed = parse(content, {
-    sourceType: "module",
-    ecmaVersion: "latest",
-    jsx,
-  });
-
-  let hasDefault = false;
-  let hasNamed = false;
-
-  parsed.body.forEach((node: any) => {
-    if (node.type === "ExportDefaultDeclaration") {
-      hasDefault = true;
-    } else if (
-      node.type === "ExportNamedDeclaration" ||
-      node.type === "ExportAllDeclaration"
-    ) {
-      hasNamed = true;
+    if (cached && stats.mtime <= cached.mtime) {
+      return { hasDefault: cached.hasDefault, hasNamed: cached.hasNamed };
     }
-  });
 
-  return { hasDefault, hasNamed };
+    const content = fs.readFileSync(filePath, "utf8");
+    let jsx = false;
+
+    if (filePath.endsWith(".tsx") || filePath.endsWith(".jsx")) jsx = true;
+
+    const parsed = parse(content, {
+      sourceType: "module",
+      ecmaVersion: "latest",
+      jsx,
+    });
+
+    let hasDefault = false;
+    let hasNamed = false;
+
+    parsed.body.forEach((node: any) => {
+      if (node.type === "ExportDefaultDeclaration") {
+        hasDefault = true;
+      } else if (
+        node.type === "ExportNamedDeclaration" ||
+        node.type === "ExportAllDeclaration"
+      ) {
+        hasNamed = true;
+      }
+    });
+
+    exportCache.set(filePath, { mtime: stats.mtime, hasDefault, hasNamed });
+    return { hasDefault, hasNamed };
+  } catch (error) {
+    console.error(`Error analyzing ${filePath}:`, error);
+    return { hasDefault: false, hasNamed: false };
+  }
+};
+
+const isValidFile = (filePath: string): boolean => {
+  const ext = path.extname(filePath);
+  const isTsx = ext === ".tsx";
+  const isTs = ext === ".ts" && path.basename(filePath) !== "index.ts";
+  return isTsx || isTs;
 };
 
 const gatherFiles = (dir: string, exclusions?: string[]): string[] => {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const cached = directoryCache.get(dir);
+  if (cached) return Array.from(cached);
 
-  let files: string[] = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
 
   entries.forEach((entry) => {
     const fullPath = path.join(dir, entry.name);
-
     if (matchExclusion(fullPath, exclusions)) return;
 
     if (entry.isDirectory()) {
-      files = files.concat(gatherFiles(fullPath, exclusions));
-    } else if (
-      entry.isFile() &&
-      (entry.name.endsWith(".tsx") ||
-        (entry.name.endsWith(".ts") && entry.name !== "index.ts"))
-    ) {
+      files.push(...gatherFiles(fullPath, exclusions));
+    } else if (entry.isFile() && isValidFile(fullPath)) {
       files.push(fullPath);
     }
   });
 
+  directoryCache.set(dir, new Set(files));
   return files;
 };
 
@@ -86,16 +109,12 @@ const generateIndex = (rootDir: string, exclusions?: string[]) => {
       } else if (hasNamed) {
         return `export * from './${relativePath}';`;
       } else {
-        console.warn(`Warning: No exports found in ${relativePath}`);
         return `// No exports found in './${relativePath}'`;
       }
     })
     .join("\n");
 
-  const indexFilePath = path.join(rootDir, "index.ts");
-
-  fs.writeFileSync(indexFilePath, HEADER + exports, "utf8");
-
+  fs.writeFileSync(path.join(rootDir, "index.ts"), HEADER + exports, "utf8");
   console.log(`Generated index.ts in ${rootDir}`);
 };
 
@@ -110,47 +129,51 @@ export function generateIndexPlugin(options: ExporterOptions): any {
     apply: "serve",
 
     configureServer(server) {
+      const debounceTimers = new Map<string, NodeJS.Timeout>();
+      const watcherHandlers = new Map<string, (filePath: string) => void>();
+
       options.dirs.forEach((dir) => {
         const dirPath = path.resolve(process.cwd(), dir);
+        if (!fs.existsSync(dirPath)) return;
 
-        if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
-          server.watcher.add(dirPath);
-        } else {
-          console.warn(`Directory ${dir} does not exist`);
-        }
+        gatherFiles(dirPath, options.excludes);
+
+        const debouncedGenerate = () => {
+          clearTimeout(debounceTimers.get(dirPath));
+          debounceTimers.set(
+            dirPath,
+            setTimeout(() => generateIndex(dirPath, options.excludes), 300)
+          );
+        };
+
+        const handler = (filePath: string) => {
+          if (
+            filePath.startsWith(dirPath) &&
+            !matchExclusion(filePath, options.excludes) &&
+            isValidFile(filePath)
+          ) {
+            debouncedGenerate();
+          }
+        };
+
+        watcherHandlers.set(dirPath, handler);
+
+        server.watcher.on("add", handler);
+        server.watcher.on("change", handler);
+        server.watcher.on("unlink", (filePath) => {
+          if (directoryCache.get(dirPath)?.delete(filePath)) {
+            debouncedGenerate();
+          }
+        });
+
+        server.watcher.add(dirPath);
       });
 
-      options.dirs.forEach((dir) => {
-        const dirPath = path.resolve(process.cwd(), dir);
-
-        server.watcher.on("change", (filePath) => {
-          if (
-            filePath.startsWith(dirPath) &&
-            !matchExclusion(filePath, options.excludes)
-          ) {
-            console.log(`File changed: ${filePath}`);
-            generateIndex(dirPath, options.excludes);
-          }
-        });
-
-        server.watcher.on("unlink", (filePath) => {
-          if (
-            filePath.startsWith(dirPath) &&
-            !matchExclusion(filePath, options.excludes)
-          ) {
-            console.log(`File deleted: ${filePath}`);
-            generateIndex(dirPath, options.excludes);
-          }
-        });
-
-        server.watcher.on("add", (filePath) => {
-          if (
-            filePath.startsWith(dirPath) &&
-            !matchExclusion(filePath, options.excludes)
-          ) {
-            console.log(`File added: ${filePath}`);
-            generateIndex(dirPath, options.excludes);
-          }
+      server.httpServer?.once("close", () => {
+        watcherHandlers.forEach((handler, dirPath) => {
+          server.watcher.unwatch(dirPath);
+          server.watcher.off("add", handler);
+          server.watcher.off("change", handler);
         });
       });
     },
@@ -158,10 +181,9 @@ export function generateIndexPlugin(options: ExporterOptions): any {
     buildStart() {
       options.dirs.forEach((dir) => {
         const dirPath = path.resolve(process.cwd(), dir);
-        if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+        if (fs.existsSync(dirPath)) {
+          gatherFiles(dirPath, options.excludes);
           generateIndex(dirPath, options.excludes);
-        } else {
-          console.warn(`Directory ${dir} does not exist`);
         }
       });
     },
