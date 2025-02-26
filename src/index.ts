@@ -3,11 +3,13 @@ import path from "path";
 import { parse } from "@typescript-eslint/parser";
 import { HEADER } from "./constants.js";
 
+// Cache for export analysis results
 const exportCache = new Map<
   string,
   { mtime: Date; hasDefault: boolean; hasNamed: boolean }
 >();
 
+// Cache for directory file listings
 const directoryCache = new Map<string, Set<string>>();
 
 const matchExclusion = (filePath: string, exclusions?: string[]): boolean => {
@@ -32,10 +34,8 @@ const analyzeExports = (
     }
 
     const content = fs.readFileSync(filePath, "utf8");
-    let jsx = false;
-
-    if (filePath.endsWith(".tsx") || filePath.endsWith(".jsx")) jsx = true;
-
+    const jsx = [".tsx", ".jsx"].includes(path.extname(filePath));
+    
     const parsed = parse(content, {
       sourceType: "module",
       ecmaVersion: "latest",
@@ -66,9 +66,8 @@ const analyzeExports = (
 
 const isValidFile = (filePath: string): boolean => {
   const ext = path.extname(filePath);
-  const isTsx = ext === ".tsx";
-  const isTs = ext === ".ts" && path.basename(filePath) !== "index.ts";
-  return isTsx || isTs;
+  const isIndex = path.basename(filePath) === "index.ts";
+  return ([".tsx", ".ts"].includes(ext) && !isIndex) || ext === ".jsx";
 };
 
 const gatherFiles = (dir: string, exclusions?: string[]): string[] => {
@@ -94,8 +93,19 @@ const gatherFiles = (dir: string, exclusions?: string[]): string[] => {
 };
 
 const generateIndex = (rootDir: string, exclusions?: string[]) => {
-  const files = gatherFiles(rootDir, exclusions);
+  const indexFilePath = path.join(rootDir, "index.ts");
+  
+  // Temporarily disable index file tracking
+  if (fs.existsSync(indexFilePath)) {
+    exportCache.set(indexFilePath, {
+      mtime: new Date(),
+      hasDefault: false,
+      hasNamed: false
+    });
+  }
 
+  const files = gatherFiles(rootDir, exclusions);
+  
   const exports = files
     .map((filePath) => {
       const relativePath = path.relative(rootDir, filePath).replace(/\\/g, "/");
@@ -108,13 +118,12 @@ const generateIndex = (rootDir: string, exclusions?: string[]) => {
         return `export { default as ${baseName} } from './${relativePath}';`;
       } else if (hasNamed) {
         return `export * from './${relativePath}';`;
-      } else {
-        return `// No exports found in './${relativePath}'`;
       }
+      return `// No exports found in './${relativePath}'`;
     })
     .join("\n");
 
-  fs.writeFileSync(path.join(rootDir, "index.ts"), HEADER + exports, "utf8");
+  fs.writeFileSync(indexFilePath, HEADER + exports, "utf8");
   console.log(`Generated index.ts in ${rootDir}`);
 };
 
@@ -136,6 +145,7 @@ export function generateIndexPlugin(options: ExporterOptions): any {
         const dirPath = path.resolve(process.cwd(), dir);
         if (!fs.existsSync(dirPath)) return;
 
+        // Initialize directory cache
         gatherFiles(dirPath, options.excludes);
 
         const debouncedGenerate = () => {
@@ -147,6 +157,20 @@ export function generateIndexPlugin(options: ExporterOptions): any {
         };
 
         const handler = (filePath: string) => {
+          const isIndexFile = path.relative(dirPath, filePath) === "index.ts";
+          
+          if (isIndexFile) {
+            if (fs.existsSync(filePath)) {
+              const stats = fs.statSync(filePath);
+              exportCache.set(filePath, {
+                mtime: stats.mtime,
+                hasDefault: false,
+                hasNamed: false
+              });
+            }
+            return;
+          }
+
           if (
             filePath.startsWith(dirPath) &&
             !matchExclusion(filePath, options.excludes) &&
