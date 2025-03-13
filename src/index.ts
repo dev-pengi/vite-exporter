@@ -3,17 +3,27 @@ import path from "path";
 import { parse } from "@typescript-eslint/parser";
 import { HEADER } from "./constants.js";
 
-// Cache for export analysis results
-const exportCache = new Map<
-  string,
-  { mtime: Date; hasDefault: boolean; hasNamed: boolean }
->();
+interface FileExportInfo {
+  absolutePath: string;
+  relativePath: string;
+  baseName: string;
+  hasDefault: boolean;
+  hasNamed: boolean;
+}
 
-// Cache for directory file listings
-const directoryCache = new Map<string, Set<string>>();
+const cache = new Map<string, FileExportInfo[]>();
+const debounceTimers = new Map<string, NodeJS.Timeout>();
+const dirMap = new Map<string, string>();
+
+let DEBUG = true;
+let DEBUG_VERBOSE = false;
+
+const debugLog = (...args: any[]) => {
+  if (DEBUG) console.log("[Vite Exporter]", ...args);
+};
 
 const matchExclusion = (filePath: string, exclusions?: string[]): boolean => {
-  if (!exclusions || !Array.isArray(exclusions)) return false;
+  if (!exclusions) return false;
   return exclusions.some((pattern) => {
     const regex = new RegExp(
       pattern.replace(/\*/g, ".*").replace(/\//g, "\\/")
@@ -22,20 +32,19 @@ const matchExclusion = (filePath: string, exclusions?: string[]): boolean => {
   });
 };
 
+const isValidFile = (filePath: string): boolean => {
+  const validExtensions = [".ts", ".tsx"];
+  const isIndex = path.basename(filePath) === "index.ts";
+  return validExtensions.some((ext) => filePath.endsWith(ext)) && !isIndex;
+};
+
 const analyzeExports = (
   filePath: string
 ): { hasDefault: boolean; hasNamed: boolean } => {
+  debugLog(`🔎 Analyzing exports: ${filePath}`);
   try {
-    const stats = fs.statSync(filePath);
-    const cached = exportCache.get(filePath);
-
-    if (cached && stats.mtime <= cached.mtime) {
-      return { hasDefault: cached.hasDefault, hasNamed: cached.hasNamed };
-    }
-
     const content = fs.readFileSync(filePath, "utf8");
-    const jsx = [".tsx", ".jsx"].includes(path.extname(filePath));
-    
+    const jsx = filePath.endsWith(".tsx");
     const parsed = parse(content, {
       sourceType: "module",
       ecmaVersion: "latest",
@@ -56,62 +65,108 @@ const analyzeExports = (
       }
     });
 
-    exportCache.set(filePath, { mtime: stats.mtime, hasDefault, hasNamed });
+    debugLog(
+      `📦 Exports for ${path.basename(
+        filePath
+      )} - default: ${hasDefault}, named: ${hasNamed}`
+    );
+
     return { hasDefault, hasNamed };
   } catch (error) {
     console.error(`Error analyzing ${filePath}:`, error);
+
     return { hasDefault: false, hasNamed: false };
   }
 };
 
-const isValidFile = (filePath: string): boolean => {
-  const ext = path.extname(filePath);
-  const isIndex = path.basename(filePath) === "index.ts";
-  return ([".tsx", ".ts"].includes(ext) && !isIndex) || ext === ".jsx";
-};
+const updateCache = (
+  dirPath: string,
+  filePath: string,
+  action: "add" | "change" | "unlink",
+  excludes?: string[]
+) => {
+  if (matchExclusion(filePath, excludes)) return;
 
-const gatherFiles = (dir: string, exclusions?: string[]): string[] => {
-  const cached = directoryCache.get(dir);
-  if (cached) return Array.from(cached);
+  const currentCache = cache.get(dirPath) || [];
 
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  const files: string[] = [];
+  debugLog(`🔄 Cache update (${action}): ${filePath}`);
+  if (DEBUG_VERBOSE) console.log("Before update:", currentCache);
 
-  entries.forEach((entry) => {
-    const fullPath = path.join(dir, entry.name);
-    if (matchExclusion(fullPath, exclusions)) return;
-
-    if (entry.isDirectory()) {
-      files.push(...gatherFiles(fullPath, exclusions));
-    } else if (entry.isFile() && isValidFile(fullPath)) {
-      files.push(fullPath);
-    }
-  });
-
-  directoryCache.set(dir, new Set(files));
-  return files;
-};
-
-const generateIndex = (rootDir: string, exclusions?: string[]) => {
-  const indexFilePath = path.join(rootDir, "index.ts");
-  
-  // Temporarily disable index file tracking
-  if (fs.existsSync(indexFilePath)) {
-    exportCache.set(indexFilePath, {
-      mtime: new Date(),
-      hasDefault: false,
-      hasNamed: false
-    });
+  if (action === "unlink") {
+    const newCache = currentCache.filter((f) => f.absolutePath !== filePath);
+    cache.set(dirPath, newCache);
+    return;
   }
 
-  const files = gatherFiles(rootDir, exclusions);
-  
-  const exports = files
-    .map((filePath) => {
-      const relativePath = path.relative(rootDir, filePath).replace(/\\/g, "/");
-      const baseName = path.basename(relativePath).replace(/\.[^/.]+$/, "");
-      const { hasDefault, hasNamed } = analyzeExports(filePath);
+  if (!isValidFile(filePath)) return;
 
+  const { hasDefault, hasNamed } = analyzeExports(filePath);
+  const relativePath = path.relative(dirPath, filePath).replace(/\\/g, "/");
+  const baseName = path.basename(relativePath).replace(/\.[^/.]+$/, "");
+
+  const existingIndex = currentCache.findIndex(
+    (f) => f.absolutePath === filePath
+  );
+
+  if (action === "change") {
+    if (existingIndex >= 0) {
+      const existing = currentCache[existingIndex];
+      if (existing.hasDefault === hasDefault && existing.hasNamed === hasNamed)
+        return;
+      currentCache[existingIndex] = {
+        absolutePath: filePath,
+        relativePath,
+        baseName,
+        hasDefault,
+        hasNamed,
+      };
+    } else {
+      currentCache.push({
+        absolutePath: filePath,
+        relativePath,
+        baseName,
+        hasDefault,
+        hasNamed,
+      });
+    }
+  } else if (action === "add") {
+    if (existingIndex === -1) {
+      currentCache.push({
+        absolutePath: filePath,
+        relativePath,
+        baseName,
+        hasDefault,
+        hasNamed,
+      });
+    }
+  }
+
+  cache.set(dirPath, currentCache);
+
+  if (DEBUG_VERBOSE) {
+    console.log("After update:", cache.get(dirPath));
+    console.log("-----------------------------------");
+  }
+};
+
+const generateIndexFromCache = (dirPath: string) => {
+  debugLog(`📝 Generating index for: ${dirPath}`);
+  const fileInfos = cache.get(dirPath) || [];
+  debugLog(`📄 ${fileInfos.length} files in cache`);
+
+  if (DEBUG_VERBOSE) {
+    console.log("Cache contents:");
+    fileInfos.forEach((f, i) =>
+      console.log(
+        `${i + 1}. ${f.relativePath} (default:${f.hasDefault}, named:${
+          f.hasNamed
+        })`
+      )
+    );
+  }
+
+  const exports = fileInfos
+    .map(({ relativePath, baseName, hasDefault, hasNamed }) => {
       if (hasDefault && hasNamed) {
         return `export { default as ${baseName} } from './${relativePath}';\nexport * from './${relativePath}';`;
       } else if (hasDefault) {
@@ -123,93 +178,129 @@ const generateIndex = (rootDir: string, exclusions?: string[]) => {
     })
     .join("\n");
 
-  fs.writeFileSync(indexFilePath, HEADER + exports, "utf8");
-  console.log(`Generated index.ts in ${rootDir}`);
+  fs.writeFileSync(path.join(dirPath, "index.ts"), HEADER + exports);
+  console.log(`Updated index.ts in ${dirPath}`);
+};
+
+const scheduleUpdate = (dirPath: string) => {
+  debugLog(`⏳ Scheduling update for: ${dirPath}`);
+  const existing = debounceTimers.get(dirPath);
+  if (existing) debugLog(`♻️ Resetting existing timer for ${dirPath}`);
+
+  if (existing) clearTimeout(existing);
+  debounceTimers.set(
+    dirPath,
+    setTimeout(() => {
+      debugLog(`🏁 Executing scheduled update for ${dirPath}`);
+      generateIndexFromCache(dirPath);
+      debounceTimers.delete(dirPath);
+    }, 800)
+  );
+};
+
+const processDirectory = (dirPath: string, exclusions?: string[]) => {
+  debugLog(`📂 Processing directory: ${dirPath}`);
+
+  const files: string[] = [];
+  const stack = [dirPath];
+
+  while (stack.length > 0) {
+    const currentDir = stack.pop()!;
+    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+      if (matchExclusion(fullPath, exclusions)) continue;
+
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+      } else if (entry.isFile() && isValidFile(fullPath)) {
+        files.push(fullPath);
+      }
+    }
+  }
+
+  const fileInfos = files.map((file) => {
+    const relativePath = path.relative(dirPath, file).replace(/\\/g, "/");
+    const baseName = path.basename(relativePath).replace(/\.[^/.]+$/, "");
+    const { hasDefault, hasNamed } = analyzeExports(file);
+    return { absolutePath: file, relativePath, baseName, hasDefault, hasNamed };
+  });
+
+  cache.set(dirPath, fileInfos);
+  generateIndexFromCache(dirPath);
+
+  debugLog(`🔍 Found ${files.length} valid files in ${dirPath}`);
+};
+
+const isGeneratedIndexFile = (
+  filePath: string,
+  dirMap: Map<string, string>
+): boolean => {
+  console.log(filePath);
+  return Array.from(dirMap.keys()).some((resolvedDir) => {
+    const generatedIndex = path.join(resolvedDir, "index.ts");
+    return filePath === generatedIndex;
+  });
 };
 
 export type ExporterOptions = {
   dirs: string[];
   excludes?: string[];
+  enableDebugging?: boolean;
+  enableDebuggingVerbose?: boolean;
 };
 
-export function generateIndexPlugin(options: ExporterOptions): any {
+export const generateIndexPlugin = (options: ExporterOptions): any => {
+  DEBUG = options.enableDebugging || false;
+  DEBUG_VERBOSE = options.enableDebuggingVerbose || false;
+  
   return {
     name: "vite-exporter-plugin",
     apply: "serve",
 
     configureServer(server) {
-      const debounceTimers = new Map<string, NodeJS.Timeout>();
-      const watcherHandlers = new Map<string, (filePath: string) => void>();
-
       options.dirs.forEach((dir) => {
         const dirPath = path.resolve(process.cwd(), dir);
-        if (!fs.existsSync(dirPath)) return;
-
-        // Initialize directory cache
-        gatherFiles(dirPath, options.excludes);
-
-        const debouncedGenerate = () => {
-          clearTimeout(debounceTimers.get(dirPath));
-          debounceTimers.set(
-            dirPath,
-            setTimeout(() => generateIndex(dirPath, options.excludes), 300)
-          );
-        };
-
-        const handler = (filePath: string) => {
-          const isIndexFile = path.relative(dirPath, filePath) === "index.ts";
-          
-          if (isIndexFile) {
-            if (fs.existsSync(filePath)) {
-              const stats = fs.statSync(filePath);
-              exportCache.set(filePath, {
-                mtime: stats.mtime,
-                hasDefault: false,
-                hasNamed: false
-              });
-            }
-            return;
-          }
-
-          if (
-            filePath.startsWith(dirPath) &&
-            !matchExclusion(filePath, options.excludes) &&
-            isValidFile(filePath)
-          ) {
-            debouncedGenerate();
-          }
-        };
-
-        watcherHandlers.set(dirPath, handler);
-
-        server.watcher.on("add", handler);
-        server.watcher.on("change", handler);
-        server.watcher.on("unlink", (filePath) => {
-          if (directoryCache.get(dirPath)?.delete(filePath)) {
-            debouncedGenerate();
-          }
-        });
-
+        dirMap.set(dirPath, dir);
+        processDirectory(dirPath, options.excludes);
         server.watcher.add(dirPath);
       });
 
-      server.httpServer?.once("close", () => {
-        watcherHandlers.forEach((handler, dirPath) => {
-          server.watcher.unwatch(dirPath);
-          server.watcher.off("add", handler);
-          server.watcher.off("change", handler);
+      const handleFileEvent = (
+        filePath: string,
+        action: "add" | "change" | "unlink"
+      ) => {
+        debugLog(`📡 File event: ${action} -> ${filePath}`);
+        if (isGeneratedIndexFile(filePath, dirMap)) {
+          debugLog(`🚫 Ignoring plugin-generated index.ts: ${filePath}`);
+          return;
+        }
+
+        Array.from(dirMap).forEach(([resolvedDir, originalDir]) => {
+          if (filePath.startsWith(resolvedDir)) {
+            if (matchExclusion(filePath, options.excludes)) {
+              updateCache(resolvedDir, filePath, "unlink", options.excludes);
+            } else {
+              updateCache(resolvedDir, filePath, action, options.excludes);
+            }
+            scheduleUpdate(resolvedDir);
+          }
         });
-      });
+      };
+
+      server.watcher.on("change", (file) => handleFileEvent(file, "change"));
+      server.watcher.on("add", (file) => handleFileEvent(file, "add"));
+      server.watcher.on("unlink", (file) => handleFileEvent(file, "unlink"));
     },
 
     buildStart() {
       options.dirs.forEach((dir) => {
         const dirPath = path.resolve(process.cwd(), dir);
         if (fs.existsSync(dirPath)) {
-          gatherFiles(dirPath, options.excludes);
-          generateIndex(dirPath, options.excludes);
+          processDirectory(dirPath, options.excludes);
         }
       });
     },
   };
-}
+};
