@@ -13,6 +13,6 @@
 
 
 
+export * from './text.ts';
 export { default as time } from './time.ts';
 export * from './time.ts';
-export * from './text.ts';

@@ -1,9 +1,9 @@
 {
   "name": "vite-exporter",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "A vite plugin that auto-generate index files to make exports/imports more readable and centralized",
-  "author": "Sifedine Haboul",
+  "author": "Sifedine Haboul, hexxt",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -40,6 +40,7 @@
     "vite-plugin"
   ],
   "dependencies": {
+    "chalk": "^5.3.0",
     "vite": "^6.0.4"
   }
 }
