@@ -1,6 +1,6 @@
-import React from 'react'
-import ReactDOM from 'react-dom'
-import { Root } from './Root'
-import './styles.css'
+import _React from "react";
+import ReactDOM from "react-dom";
+import { Root } from "./Root.tsx";
+import "./styles.css";
 
-ReactDOM.render(<Root />, document.getElementById('root'))
+ReactDOM.render(<Root />, document.getElementById("root"));

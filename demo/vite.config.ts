@@ -1,12 +1,10 @@
 import { defineConfig } from "vite";
-import reactRefresh from "@vitejs/plugin-react-refresh";
-import { generateIndexPlugin } from "../dist/plugin";
+import { generateIndexPlugin } from "../dist/index.js";
 
 export default defineConfig({
   plugins: [
-    reactRefresh(),
     generateIndexPlugin({
-      dirs: [""],
+      dirs: ["src/components", "src/utils"],
     }),
   ],
 });

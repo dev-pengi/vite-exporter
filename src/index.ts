@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 import { parse } from "@typescript-eslint/parser";
 import { HEADER } from "./constants.js";
 
@@ -25,9 +25,7 @@ const debugLog = (...args: any[]) => {
 const matchExclusion = (filePath: string, exclusions?: string[]): boolean => {
   if (!exclusions) return false;
   return exclusions.some((pattern) => {
-    const regex = new RegExp(
-      pattern.replace(/\*/g, ".*").replace(/\//g, "\\/")
-    );
+    const regex = new RegExp(pattern.replace(/\*/g, ".*").replace(/\//g, "\\/"));
     return regex.test(filePath);
   });
 };
@@ -38,9 +36,7 @@ const isValidFile = (filePath: string): boolean => {
   return validExtensions.some((ext) => filePath.endsWith(ext)) && !isIndex;
 };
 
-const analyzeExports = (
-  filePath: string
-): { hasDefault: boolean; hasNamed: boolean } => {
+const analyzeExports = (filePath: string): { hasDefault: boolean; hasNamed: boolean } => {
   debugLog(`🔎 Analyzing exports: ${filePath}`);
   try {
     const content = fs.readFileSync(filePath, "utf8");
@@ -57,18 +53,13 @@ const analyzeExports = (
     parsed.body.forEach((node: any) => {
       if (node.type === "ExportDefaultDeclaration") {
         hasDefault = true;
-      } else if (
-        node.type === "ExportNamedDeclaration" ||
-        node.type === "ExportAllDeclaration"
-      ) {
+      } else if (node.type === "ExportNamedDeclaration" || node.type === "ExportAllDeclaration") {
         hasNamed = true;
       }
     });
 
     debugLog(
-      `📦 Exports for ${path.basename(
-        filePath
-      )} - default: ${hasDefault}, named: ${hasNamed}`
+      `📦 Exports for ${path.basename(filePath)} - default: ${hasDefault}, named: ${hasNamed}`
     );
 
     return { hasDefault, hasNamed };
@@ -104,15 +95,12 @@ const updateCache = (
   const relativePath = path.relative(dirPath, filePath).replace(/\\/g, "/");
   const baseName = path.basename(relativePath).replace(/\.[^/.]+$/, "");
 
-  const existingIndex = currentCache.findIndex(
-    (f) => f.absolutePath === filePath
-  );
+  const existingIndex = currentCache.findIndex((f) => f.absolutePath === filePath);
 
   if (action === "change") {
     if (existingIndex >= 0) {
       const existing = currentCache[existingIndex];
-      if (existing.hasDefault === hasDefault && existing.hasNamed === hasNamed)
-        return;
+      if (existing.hasDefault === hasDefault && existing.hasNamed === hasNamed) return;
       currentCache[existingIndex] = {
         absolutePath: filePath,
         relativePath,
@@ -157,11 +145,7 @@ const generateIndexFromCache = (dirPath: string) => {
   if (DEBUG_VERBOSE) {
     console.log("Cache contents:");
     fileInfos.forEach((f, i) =>
-      console.log(
-        `${i + 1}. ${f.relativePath} (default:${f.hasDefault}, named:${
-          f.hasNamed
-        })`
-      )
+      console.log(`${i + 1}. ${f.relativePath} (default:${f.hasDefault}, named:${f.hasNamed})`)
     );
   }
 
@@ -194,7 +178,7 @@ const scheduleUpdate = (dirPath: string) => {
       debugLog(`🏁 Executing scheduled update for ${dirPath}`);
       generateIndexFromCache(dirPath);
       debounceTimers.delete(dirPath);
-    }, 800)
+    }, 2000)
   );
 };
 
@@ -233,10 +217,7 @@ const processDirectory = (dirPath: string, exclusions?: string[]) => {
   debugLog(`🔍 Found ${files.length} valid files in ${dirPath}`);
 };
 
-const isGeneratedIndexFile = (
-  filePath: string,
-  dirMap: Map<string, string>
-): boolean => {
+const isGeneratedIndexFile = (filePath: string, dirMap: Map<string, string>): boolean => {
   console.log(filePath);
   return Array.from(dirMap.keys()).some((resolvedDir) => {
     const generatedIndex = path.join(resolvedDir, "index.ts");
@@ -254,7 +235,7 @@ export type ExporterOptions = {
 export const generateIndexPlugin = (options: ExporterOptions): any => {
   DEBUG = options.enableDebugging || false;
   DEBUG_VERBOSE = options.enableDebuggingVerbose || false;
-  
+
   return {
     name: "vite-exporter-plugin",
     apply: "serve",
@@ -267,10 +248,7 @@ export const generateIndexPlugin = (options: ExporterOptions): any => {
         server.watcher.add(dirPath);
       });
 
-      const handleFileEvent = (
-        filePath: string,
-        action: "add" | "change" | "unlink"
-      ) => {
+      const handleFileEvent = (filePath: string, action: "add" | "change" | "unlink") => {
         debugLog(`📡 File event: ${action} -> ${filePath}`);
         if (isGeneratedIndexFile(filePath, dirMap)) {
           debugLog(`🚫 Ignoring plugin-generated index.ts: ${filePath}`);

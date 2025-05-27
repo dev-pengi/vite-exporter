@@ -1,3 +1,3 @@
-import React from 'react'
+import _React from "react";
 
-export const Root = () => <div>Hello world</div>
+export const Root = () => <div>Hello world</div>;

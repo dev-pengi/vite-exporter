@@ -1,6 +1,7 @@
 {
   "name": "vite-exporter",
   "version": "1.0.0",
+  "type": "module",
   "description": "A vite plugin that auto-generate index files to make exports/imports more readable and centralized",
   "author": "Sifedine Haboul",
   "license": "MIT",
@@ -20,8 +21,7 @@
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
+      "require": "./dist/index.js"
     }
   },
   "main": "dist/index.js",
@@ -29,7 +29,7 @@
   "types": "dist/types/index.d.ts",
   "devDependencies": {
     "@changesets/cli": "^2.18.0",
-    "@types/node": "^14.14.20",
+    "@types/node": "^22.0.0",
     "@typescript-eslint/parser": "^8.16.0",
     "changeset": "^0.2.6",
     "prettier": "^2.0.5",
