@@ -30,6 +30,8 @@ file changes will be detected and the index.ts file will be updated automaticall
 
 ## Configuration
 
+### Basic Configuration
+
 ```typescript
 import { generateIndexPlugin, LogLevel } from 'vite-exporter';
 
@@ -38,13 +40,79 @@ export default defineConfig({
     generateIndexPlugin({
       dirs: ['src/components', 'src/utils'],           // Required: directories to process
       extensions: ['.ts', '.tsx', '.js', '.jsx'],     // File extensions (default shown)
-      debounceMs: 1500,                               // Debounce timing (default: 2000)
+      debounceMs: 2000,                               // Debounce timing (default: 2000)
       logLevel: LogLevel.DEBUG,                       // Log verbosity (default: INFO)
-      excludes: ['**/*.test.ts', '**/*.spec.ts'],     // Exclude patterns
     }),
   ],
 });
 ```
+
+### Advanced Per-Directory Configuration
+
+You can now specify different matching and exclusion patterns for each directory:
+
+```typescript
+generateIndexPlugin({
+  dirs: [
+    // Simple string format (matches everything)
+    'src/utils',
+    
+    // Advanced configuration with per-directory patterns
+    {
+      dir: 'src/components',
+      match: ['**/*.tsx', '**/*.ts'],     // Only include TypeScript files
+      exclude: ['**/*.test.*', '**/*.stories.*'],  // Exclude test and story files
+      run: ['**/database.ts', '**/init.ts']       // Import for side effects
+    },
+    {
+      dir: 'src/api',
+      match: 'endpoints/**/*',            // Only include files in endpoints subdirectory
+      exclude: ['**/*.mock.ts']           // Exclude mock files
+    }
+  ],
+  logLevel: LogLevel.DEBUG,
+});
+```
+
+### Pattern Matching
+
+The plugin uses [minimatch](https://www.npmjs.com/package/minimatch) for pattern matching, supporting:
+
+- `**/*` - Match all files (default)
+- `**/*.tsx` - Match only .tsx files
+- `components/**/*` - Match files in components subdirectory
+- `!**/*.test.*` - Exclude test files (use in exclude array)
+- `*.{ts,tsx}` - Match .ts or .tsx files
+
+### Side-Effect Imports (Run Option)
+
+The `run` option allows you to import files for their side effects even when they don't export anything:
+
+```typescript
+generateIndexPlugin({
+  dirs: [
+    {
+      dir: 'src/setup',
+      run: ['**/*.init.ts']
+    }
+  ]
+})
+```
+
+Files matched by `run` patterns that have no exports will be imported using:
+```typescript
+import './backend.init.ts';
+import './setup/config.init.ts';
+```
+
+## Directory Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `dir` | `string` | **Required** | Directory path to process |
+| `match` | `string \| string[]` | `["**/*"]` | Glob patterns to include files |
+| `exclude` | `string \| string[]` | `[]` | Glob patterns to exclude files |
+| `run` | `string \| string[]` | `[]` | Glob patterns for side-effect imports |
 
 ## Log Levels
 
@@ -68,7 +136,6 @@ The new logging system provides beautiful, colored output with timestamps:
 │ Extensions: .ts, .tsx, .js, .jsx
 │ Debounce: 1500ms
 │ Log Level: DEBUG
-│ Excludes: **/*.test.ts, **/*.spec.ts
 └─
 
 15:30:45 [Vite Exporter] DEBUG   👀 Watching directory: src/components
@@ -85,7 +152,16 @@ src/
   components/
     Button.tsx        // export default Button + named exports
     Input.tsx         // export default Input
-    Select.ts          // only named exports
+    Select.ts         // only named exports
+    database.init.ts // no exports, side effects only
+```
+
+With configuration:
+```typescript
+{
+  dir: 'src/components',
+  run: ['**/*.init.ts']
+}
 ```
 
 The plugin generates:
@@ -96,17 +172,79 @@ export { default as Button } from './Button';
 export * from './Button';
 export { default as Input } from './Input';
 export * from './Select';
+import './database.init.ts';
 ```
 
 ## Configuration Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `dirs` | `string[]` | **Required** | Directories to process |
+| `dirs` | `(string \| DirConfig)[]` | **Required** | Directories to process |
 | `extensions` | `string[]` | `['.ts', '.tsx', '.js', '.jsx']` | File extensions to include |
 | `debounceMs` | `number` | `2000` | Debounce timing in milliseconds |
 | `logLevel` | `LogLevel` | `LogLevel.INFO` | Logging verbosity level |
-| `excludes` | `string[]` | `[]` | Glob patterns to exclude |
+
+## Examples
+
+### Component Library with Tests
+```typescript
+generateIndexPlugin({
+  dirs: [
+    {
+      dir: 'src/components',
+      match: ['**/*.tsx', '**/*.ts'],
+      exclude: ['**/*.test.*', '**/*.stories.*', '**/__tests__/**']
+    }
+  ]
+})
+```
+
+### API Endpoints Only
+```typescript
+generateIndexPlugin({
+  dirs: [
+    {
+      dir: 'src/api',
+      match: 'endpoints/**/*.ts',
+      exclude: ['**/*.mock.ts', '**/*.spec.ts']
+    }
+  ]
+})
+```
+
+### Setup with Initialization Files
+```typescript
+generateIndexPlugin({
+  dirs: [
+    {
+      dir: 'src/setup',
+      match: ['**/*.ts'],
+      run: ['**/*.init.ts', '**/database.ts']  // Import these for side effects
+    }
+  ]
+})
+```
+
+### Multiple Directories with Different Rules
+```typescript
+generateIndexPlugin({
+  dirs: [
+    'src/utils',  // Simple: match everything
+    {
+      dir: 'src/components',
+      exclude: ['**/*.test.*', '**/*.stories.*']
+    },
+    {
+      dir: 'src/hooks',
+      match: 'use*.ts'  // Only hook files
+    },
+    {
+      dir: 'src/config',
+      run: ['env.ts', 'database.ts']  // Side-effect imports
+    }
+  ]
+})
+```
 
 ## Troubleshooting
 
@@ -119,23 +257,34 @@ generateIndexPlugin({
 ```
 
 **Common issues:**
-- Files not detected → Check `extensions` configuration
+- Files not detected → Check `extensions` configuration and `match` patterns
 - Too many updates slow down the build → Increase `debounceMs` value  
-- Files excluded → Check `excludes` patterns
+- Files excluded → Check `exclude` patterns and ensure they use forward slashes
+- Side-effect imports not working → Ensure files match `run` patterns and have no exports
 
-## Migration from v1.x
+## Migration Guide
+
+### From v1.x to v2.x
 
 ```typescript
 // Old (v1.x)
 generateIndexPlugin({
   dirs: ['src/components'],
+  excludes: ['**/*.test.ts', '**/*.spec.ts'],  // Global excludes
   enableDebugging: true,
   enableDebuggingVerbose: true,
 })
 
 // New (v2.x)
 generateIndexPlugin({
-  dirs: ['src/components'],
+  dirs: [
+    "src/utils",
+    {
+      dir: 'src/components',
+      // not match pattern/patterns so all files will be imported from
+      exclude: ['**/*.test.ts', '**/*.spec.ts']  // Per-directory excludes
+    }
+  ],
   logLevel: LogLevel.VERBOSE,
 })
 ```

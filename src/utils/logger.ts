@@ -11,6 +11,7 @@ export enum LogLevel {
 }
 
 let currentLogLevel = LogLevel.INFO;
+
 export const getRelativePath = (filePath: string): string => {
   return path.relative(process.cwd(), filePath);
 };
@@ -124,4 +125,4 @@ export const configSummary = (config: any): void => {
     );
   }
   console.log(chalk.dim("└─"));
-};
+}; 
