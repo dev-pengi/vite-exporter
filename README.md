@@ -61,8 +61,7 @@ generateIndexPlugin({
     {
       dir: 'src/components',
       match: ['**/*.tsx', '**/*.ts'],     // Only include TypeScript files
-      exclude: ['**/*.test.*', '**/*.stories.*'],  // Exclude test and story files
-      run: ['**/database.ts', '**/init.ts']       // Import for side effects
+      exclude: ['**/*.test.*', '**/*.stories.*']  // Exclude test and story files
     },
     {
       dir: 'src/api',
@@ -84,27 +83,6 @@ The plugin uses [minimatch](https://www.npmjs.com/package/minimatch) for pattern
 - `!**/*.test.*` - Exclude test files (use in exclude array)
 - `*.{ts,tsx}` - Match .ts or .tsx files
 
-### Side-Effect Imports (Run Option)
-
-The `run` option allows you to import files for their side effects even when they don't export anything:
-
-```typescript
-generateIndexPlugin({
-  dirs: [
-    {
-      dir: 'src/setup',
-      run: ['**/*.init.ts']
-    }
-  ]
-})
-```
-
-Files matched by `run` patterns that have no exports will be imported using:
-```typescript
-import './backend.init.ts';
-import './setup/config.init.ts';
-```
-
 ## Directory Configuration Options
 
 | Option | Type | Default | Description |
@@ -112,7 +90,6 @@ import './setup/config.init.ts';
 | `dir` | `string` | **Required** | Directory path to process |
 | `match` | `string \| string[]` | `["**/*"]` | Glob patterns to include files |
 | `exclude` | `string \| string[]` | `[]` | Glob patterns to exclude files |
-| `run` | `string \| string[]` | `[]` | Glob patterns for side-effect imports |
 
 ## Log Levels
 
@@ -153,15 +130,6 @@ src/
     Button.tsx        // export default Button + named exports
     Input.tsx         // export default Input
     Select.ts         // only named exports
-    database.init.ts // no exports, side effects only
-```
-
-With configuration:
-```typescript
-{
-  dir: 'src/components',
-  run: ['**/*.init.ts']
-}
 ```
 
 The plugin generates:
@@ -172,7 +140,6 @@ export { default as Button } from './Button';
 export * from './Button';
 export { default as Input } from './Input';
 export * from './Select';
-import './database.init.ts';
 ```
 
 ## Configuration Options
@@ -212,19 +179,6 @@ generateIndexPlugin({
 })
 ```
 
-### Setup with Initialization Files
-```typescript
-generateIndexPlugin({
-  dirs: [
-    {
-      dir: 'src/setup',
-      match: ['**/*.ts'],
-      run: ['**/*.init.ts', '**/database.ts']  // Import these for side effects
-    }
-  ]
-})
-```
-
 ### Multiple Directories with Different Rules
 ```typescript
 generateIndexPlugin({
@@ -237,10 +191,6 @@ generateIndexPlugin({
     {
       dir: 'src/hooks',
       match: 'use*.ts'  // Only hook files
-    },
-    {
-      dir: 'src/config',
-      run: ['env.ts', 'database.ts']  // Side-effect imports
     }
   ]
 })
@@ -260,7 +210,6 @@ generateIndexPlugin({
 - Files not detected → Check `extensions` configuration and `match` patterns
 - Too many updates slow down the build → Increase `debounceMs` value  
 - Files excluded → Check `exclude` patterns and ensure they use forward slashes
-- Side-effect imports not working → Ensure files match `run` patterns and have no exports
 
 ## Migration Guide
 
@@ -281,7 +230,6 @@ generateIndexPlugin({
     "src/utils",
     {
       dir: 'src/components',
-      // not match pattern/patterns so all files will be imported from
       exclude: ['**/*.test.ts', '**/*.spec.ts']  // Per-directory excludes
     }
   ],

@@ -17,10 +17,8 @@ export const generateIndexFromCache = (dirPath: string) => {
     }
 
     const exports = fileInfos
-      .map(({ relativePath, baseName, hasDefault, hasNamed, isRunImport }) => {
-        if (isRunImport) {
-          return `import './${relativePath}';`;
-        } else if (hasDefault && hasNamed) {
+      .map(({ relativePath, baseName, hasDefault, hasNamed }) => {
+        if (hasDefault && hasNamed) {
           return `export { default as ${baseName} } from './${relativePath}';\nexport * from './${relativePath}';`;
         } else if (hasDefault) {
           return `export { default as ${baseName} } from './${relativePath}';`;

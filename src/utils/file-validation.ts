@@ -48,29 +48,6 @@ export const shouldIncludeFile = (
   return isIncluded;
 };
 
-export const shouldRunImport = (
-  filePath: string,
-  baseDirPath: string,
-  config: NormalizedDirConfig
-): boolean => {
-  if (config.run.length === 0) return false;
-
-  const relativePath = path.relative(baseDirPath, filePath).replace(/\\/g, "/");
-
-  return config.run.some((pattern) => {
-    try {
-      const isMatch = minimatch(relativePath, pattern);
-      if (isMatch) {
-        logger.verbose(`🔄 File marked for run import by pattern "${pattern}": ${logger.getRelativePath(filePath)}`);
-      }
-      return isMatch;
-    } catch (error) {
-      logger.warn(`Invalid run pattern "${pattern}": ${error}`);
-      return false;
-    }
-  });
-};
-
 export const isValidFile = (filePath: string, extensions: string[]): boolean => {
   const isIndex = path.basename(filePath) === "index.ts";
   const hasValidExtension = extensions.some((ext) => filePath.endsWith(ext));

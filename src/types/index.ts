@@ -6,21 +6,18 @@ export interface FileExportInfo {
   baseName: string;
   hasDefault: boolean;
   hasNamed: boolean;
-  isRunImport?: boolean; // New flag for side-effect imports
 }
 
 export interface DirConfig {
   dir: string;
   match?: string | string[]; // if not assigned match everything
   exclude?: string | string[]; // if not assigned match nothing
-  run?: string | string[]; // files to import for side effects even if no exports
 }
 
 export interface NormalizedDirConfig {
   dir: string;
   match: string[];
   exclude: string[];
-  run: string[]; // normalized run patterns
 }
 
 export interface PluginConfig {

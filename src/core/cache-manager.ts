@@ -1,6 +1,6 @@
 import path from "node:path";
 import { FileExportInfo, FileEventAction, NormalizedDirConfig } from "../types/index.js";
-import { shouldIncludeFile, shouldRunImport, isValidFile } from "../utils/file-validation.js";
+import { shouldIncludeFile, isValidFile } from "../utils/file-validation.js";
 import { analyzeExports } from "./export-analyzer.js";
 import * as logger from "../utils/logger.js";
 
@@ -37,7 +37,6 @@ export const updateCache = (
     const { hasDefault, hasNamed } = analyzeExports(filePath);
     const relativePath = path.relative(dirPath, filePath).replace(/\\/g, "/");
     const baseName = path.basename(relativePath).replace(/\.[^/.]+$/, "");
-    const isRunImport = shouldRunImport(filePath, dirPath, dirConfig) && !hasDefault && !hasNamed;
 
     const existingIndex = currentCache.findIndex((f) => f.absolutePath === filePath);
     const fileInfo: FileExportInfo = {
@@ -46,13 +45,12 @@ export const updateCache = (
       baseName,
       hasDefault,
       hasNamed,
-      isRunImport,
     };
 
     if (action === "change") {
       if (existingIndex >= 0) {
         const existing = currentCache[existingIndex];
-        if (existing.hasDefault === hasDefault && existing.hasNamed === hasNamed && existing.isRunImport === isRunImport) {
+        if (existing.hasDefault === hasDefault && existing.hasNamed === hasNamed) {
           logger.verbose(`⚡ No export changes detected for: ${logger.getRelativePath(filePath)}`);
           return;
         }

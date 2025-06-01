@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { NormalizedDirConfig } from "../types/index.js";
-import { shouldIncludeFile, shouldRunImport, isValidFile } from "../utils/file-validation.js";
+import { shouldIncludeFile, isValidFile } from "../utils/file-validation.js";
 import { analyzeExports } from "./export-analyzer.js";
 import { getCache } from "./cache-manager.js";
 import { generateIndexFromCache } from "./index-generator.js";
@@ -43,8 +43,7 @@ export const processDirectory = (
       const relativePath = path.relative(dirPath, file).replace(/\\/g, "/");
       const baseName = path.basename(relativePath).replace(/\.[^/.]+$/, "");
       const { hasDefault, hasNamed } = analyzeExports(file);
-      const isRunImport = shouldRunImport(file, dirPath, dirConfig) && !hasDefault && !hasNamed;
-      return { absolutePath: file, relativePath, baseName, hasDefault, hasNamed, isRunImport };
+      return { absolutePath: file, relativePath, baseName, hasDefault, hasNamed };
     });
 
     getCache().set(dirPath, fileInfos);

@@ -6,7 +6,6 @@ export const normalizeDirConfig = (dirConfig: string | DirConfig): NormalizedDir
       dir: dirConfig,
       match: ["**/*"], // match everything by default
       exclude: [], // exclude nothing by default
-      run: [], // no run imports by default
     };
   }
 
@@ -19,6 +18,5 @@ export const normalizeDirConfig = (dirConfig: string | DirConfig): NormalizedDir
     dir: dirConfig.dir,
     match: dirConfig.match ? normalizePatterns(dirConfig.match) : ["**/*"],
     exclude: normalizePatterns(dirConfig.exclude),
-    run: normalizePatterns(dirConfig.run),
   };
 }; 
