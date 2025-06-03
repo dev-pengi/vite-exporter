@@ -15,7 +15,8 @@
   "scripts": {
     "build": "tsc -p .",
     "prepare": "yarn build",
-    "changeset": "changeset"
+    "changeset": "changeset",
+    "publish": "changeset publish"
   },
   "exports": {
     ".": {
