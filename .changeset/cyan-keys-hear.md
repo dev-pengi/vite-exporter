@@ -1,0 +1,5 @@
+---
+"vite-exporter": patch
+---
+
+fixes
