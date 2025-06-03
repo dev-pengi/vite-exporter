@@ -21,13 +21,14 @@
     ".": {
       "import": "./dist/index.js",
       "require": "./dist/index.js",
-      "types":"./dist/types/index.d.ts"
+      "types": "./dist/types/index.d.ts"
     }
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "^2.18.0",
     "@types/node": "^22.0.0",
     "@typescript-eslint/parser": "^8.16.0",
