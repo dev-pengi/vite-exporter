@@ -1,39 +1,39 @@
 {
   "name": "vite-exporter",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "type": "module",
   "description": "A vite plugin that auto-generate index files to make exports/imports more readable and centralized",
-  "author": "Seif Eddine Haboul, hexxt",
+  "author": "Sifedine Haboul, hexxt",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/dev-pengi/vite-exporter"
   },
-  "scripts": {
-    "build": "tsc -p .",
-    "prepare": "yarn build",
-    "changeset": "changeset",
-    "release": "changeset publish"
-  },
-  "exports": {
-    "import": "./dist/esm/index.js",
-    "require": "./dist/cjs/index.js",
-    "types": "./dist/types/index.d.ts"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "main": "dist/cjs/index.js",
-  "module": "dist/esm/index.js",
-  "types": "dist/types/index.d.ts",
   "files": [
     "dist"
   ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepare": "yarn build",
+    "changeset": "changeset"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types":"./dist/types/index.d.ts"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
   "devDependencies": {
     "@changesets/cli": "^2.18.0",
     "@types/node": "^22.0.0",
+    "@typescript-eslint/parser": "^8.16.0",
     "changeset": "^0.2.6",
-    "prettier": "^2.0.5"
+    "prettier": "^2.0.5",
+    "typescript": "^5.7.2"
   },
   "keywords": [
     "vite",
@@ -42,7 +42,6 @@
   "dependencies": {
     "chalk": "^5.3.0",
     "minimatch": "^10.0.1",
-    "typescript": "^5.7.2",
     "vite": "^6.0.4"
   }
 }
