@@ -6,7 +6,7 @@ import * as logger from "./logger.js";
 export const shouldIncludeFile = (
   filePath: string,
   baseDirPath: string,
-  config: NormalizedDirConfig
+  config: NormalizedDirConfig,
 ): boolean => {
   const relativePath = path.relative(baseDirPath, filePath).replace(/\\/g, "/");
 
@@ -16,7 +16,7 @@ export const shouldIncludeFile = (
       const isMatch = minimatch(relativePath, pattern);
       if (isMatch) {
         logger.verbose(
-          `🚫 File excluded by pattern "${pattern}": ${logger.getRelativePath(filePath)}`
+          `🚫 File excluded by pattern "${pattern}": ${logger.getRelativePath(filePath)}`,
         );
       }
       return isMatch;
@@ -34,7 +34,7 @@ export const shouldIncludeFile = (
       const isMatch = minimatch(relativePath, pattern);
       if (isMatch) {
         logger.verbose(
-          `✅ File matched by pattern "${pattern}": ${logger.getRelativePath(filePath)}`
+          `✅ File matched by pattern "${pattern}": ${logger.getRelativePath(filePath)}`,
         );
       }
       return isMatch;
@@ -54,7 +54,7 @@ export const shouldIncludeFile = (
 export const shouldIncludeAsImport = (
   hasDefault: boolean,
   hasNamed: boolean,
-  mode: ProcessingMode
+  mode: ProcessingMode,
 ): boolean => {
   const hasExports = hasDefault || hasNamed;
 
@@ -80,7 +80,7 @@ export const shouldIncludeAsImport = (
 export const shouldGenerateSideEffectImport = (
   hasDefault: boolean,
   hasNamed: boolean,
-  mode: ProcessingMode
+  mode: ProcessingMode,
 ): boolean => {
   const hasExports = hasDefault || hasNamed;
 
@@ -122,7 +122,7 @@ export const isValidFile = (filePath: string, extensions: string[]): boolean => 
 
 export const isGeneratedIndexFile = (
   filePath: string,
-  dirMap: Map<string, NormalizedDirConfig>
+  dirMap: Map<string, NormalizedDirConfig>,
 ): boolean => {
   return Array.from(dirMap.keys()).some((resolvedDir) => {
     const generatedIndex = path.join(resolvedDir, "index.ts");

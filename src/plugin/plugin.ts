@@ -58,7 +58,7 @@ export const generateIndexPlugin = (options: ExporterOptions): any => {
 
           if (isGeneratedIndexFile(filePath, dirMap)) {
             logger.verbose(
-              `🚫 Ignoring plugin-generated index.ts: ${logger.getRelativePath(filePath)}`
+              `🚫 Ignoring plugin-generated index.ts: ${logger.getRelativePath(filePath)}`,
             );
             return;
           }

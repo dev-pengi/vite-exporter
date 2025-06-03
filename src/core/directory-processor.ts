@@ -15,7 +15,7 @@ import * as logger from "../utils/logger.js";
 export const processDirectory = (
   dirPath: string,
   config: { extensions: string[] },
-  dirConfig: NormalizedDirConfig
+  dirConfig: NormalizedDirConfig,
 ) => {
   logger.verbose(`📂 Processing directory: ${logger.getRelativePath(dirPath)}`);
 

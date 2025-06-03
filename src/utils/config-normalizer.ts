@@ -2,7 +2,7 @@ import { DirConfig, NormalizedDirConfig, ProcessingMode } from "../types/index.j
 
 export const normalizeDirConfig = (
   dirConfig: string | DirConfig,
-  globalMode: ProcessingMode = ProcessingMode.ExportsOnly
+  globalMode: ProcessingMode = ProcessingMode.ExportsOnly,
 ): NormalizedDirConfig => {
   if (typeof dirConfig === "string") {
     return {

@@ -75,8 +75,8 @@ export const cacheUpdate = (action: string, filePath: string, count?: number): v
   const countText = count !== undefined ? chalk.dim(` (${count} files in cache)`) : "";
   verbose(
     `${icon} Cache ${chalk.cyan.bold(action.toUpperCase())}: ${getRelativePath(
-      filePath
-    )}${countText}`
+      filePath,
+    )}${countText}`,
   );
 };
 
@@ -88,21 +88,21 @@ export const exportAnalysis = (filePath: string, hasDefault: boolean, hasNamed: 
 
 export const directoryProcessing = (dirPath: string, fileCount: number): void => {
   info(
-    `📂 Processing ${getRelativePath(dirPath)} → Found ${chalk.bold.green(fileCount)} valid files`
+    `📂 Processing ${getRelativePath(dirPath)} → Found ${chalk.bold.green(fileCount)} valid files`,
   );
 };
 
 export const indexGeneration = (dirPath: string, fileCount: number): void => {
   success(
     `📝 Generated index.ts in ${getRelativePath(dirPath)} with ${chalk.bold.green(
-      fileCount
-    )} exports`
+      fileCount,
+    )} exports`,
   );
 };
 
 export const debounceScheduled = (dirPath: string, delay: number): void => {
   debug(
-    `⏳ Scheduled update for ${getRelativePath(dirPath)} in ${chalk.bold.yellow(`${delay}ms`)}`
+    `⏳ Scheduled update for ${getRelativePath(dirPath)} in ${chalk.bold.yellow(`${delay}ms`)}`,
   );
 };
 
@@ -115,14 +115,14 @@ export const configSummary = (config: any): void => {
   console.log(chalk.dim("┌─ Configuration"));
   console.log(chalk.dim("│ ") + chalk.cyan("Directories: ") + chalk.white(config.dirs.join(", ")));
   console.log(
-    chalk.dim("│ ") + chalk.cyan("Extensions: ") + chalk.white(config.extensions.join(", "))
+    chalk.dim("│ ") + chalk.cyan("Extensions: ") + chalk.white(config.extensions.join(", ")),
   );
   console.log(chalk.dim("│ ") + chalk.cyan("Debounce: ") + chalk.white(`${config.debounceMs}ms`));
   console.log(chalk.dim("│ ") + chalk.cyan("Log Level: ") + chalk.white(LogLevel[config.logLevel]));
   if (config.excludes?.length) {
     console.log(
-      chalk.dim("│ ") + chalk.cyan("Excludes: ") + chalk.white(config.excludes.join(", "))
+      chalk.dim("│ ") + chalk.cyan("Excludes: ") + chalk.white(config.excludes.join(", ")),
     );
   }
   console.log(chalk.dim("└─"));
-}; 
+};

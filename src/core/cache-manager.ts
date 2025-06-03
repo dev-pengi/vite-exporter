@@ -18,7 +18,7 @@ export const updateCache = (
   filePath: string,
   action: FileEventAction,
   config: { extensions: string[] },
-  dirConfig: NormalizedDirConfig
+  dirConfig: NormalizedDirConfig,
 ) => {
   if (
     !isValidFile(filePath, config.extensions) ||
@@ -50,7 +50,7 @@ export const updateCache = (
         currentCache.splice(existingIndex, 1);
         cache.set(dirPath, currentCache);
         logger.verbose(
-          `🗑️ Removed from cache (mode exclusion): ${logger.getRelativePath(filePath)}`
+          `🗑️ Removed from cache (mode exclusion): ${logger.getRelativePath(filePath)}`,
         );
       }
       return;

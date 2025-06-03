@@ -19,6 +19,6 @@ export const scheduleUpdate = (dirPath: string, debounceMs: number) => {
       logger.debounceExecuted(dirPath);
       generateIndexFromCache(dirPath);
       debounceTimers.delete(dirPath);
-    }, debounceMs)
+    }, debounceMs),
   );
-}; 
+};

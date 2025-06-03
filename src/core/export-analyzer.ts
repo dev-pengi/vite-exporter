@@ -22,8 +22,8 @@ export const analyzeExports = (filePath: string): { hasDefault: boolean; hasName
           ? ts.ScriptKind.TSX
           : ts.ScriptKind.TS
         : isJSX
-        ? ts.ScriptKind.JSX
-        : ts.ScriptKind.JS
+          ? ts.ScriptKind.JSX
+          : ts.ScriptKind.JS,
     );
 
     let hasDefault = false;

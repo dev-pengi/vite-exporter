@@ -8,7 +8,7 @@ export const generateIndexFromCache = (dirPath: string) => {
   try {
     const fileInfos = getCache().get(dirPath) || [];
     logger.verbose(
-      `📝 Generating index for: ${logger.getRelativePath(dirPath)} with ${fileInfos.length} files`
+      `📝 Generating index for: ${logger.getRelativePath(dirPath)} with ${fileInfos.length} files`,
     );
 
     if (fileInfos.length === 0) {

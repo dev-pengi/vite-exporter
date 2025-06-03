@@ -1,14 +1,14 @@
-const path = require('path')
+const path = require("path");
 
 exports.form = {
   description: String,
-}
+};
 
-const basename = path.basename(__dirname)
+const basename = path.basename(__dirname);
 
-const ident = basename.replace(/^vite-(plugin-)?/, '')
+const ident = basename.replace(/^vite-(plugin-)?/, "");
 
 exports.context = {
   name: basename,
   ident,
-}
+};
