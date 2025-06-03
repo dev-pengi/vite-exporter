@@ -17,8 +17,8 @@ export const generateIndexFromCache = (dirPath: string) => {
     }
 
     const exports = fileInfos
-      .map(({ relativePath, baseName, hasDefault, hasNamed, isRunImport }) => {
-        if (isRunImport) {
+      .map(({ relativePath, baseName, hasDefault, hasNamed, shouldImport }) => {
+        if (shouldImport) {
           return `import './${relativePath}';`;
         } else if (hasDefault && hasNamed) {
           return `export { default as ${baseName} } from './${relativePath}';\nexport * from './${relativePath}';`;
@@ -37,4 +37,4 @@ export const generateIndexFromCache = (dirPath: string) => {
   } catch (error) {
     logger.error(`Failed to generate index for ${logger.getRelativePath(dirPath)}: ${error}`);
   }
-}; 
+};

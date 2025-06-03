@@ -1,8 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ExporterOptions, PluginConfig, NormalizedDirConfig } from "../types/index.js";
+import {
+  ExporterOptions,
+  PluginConfig,
+  NormalizedDirConfig,
+  ProcessingMode,
+} from "../types/index.js";
 import { DEFAULT_CONFIG } from "../config/defaults.js";
-import { LogLevel } from "../utils/logger.js";
 import { isGeneratedIndexFile } from "../utils/file-validation.js";
 import { normalizeDirConfig } from "../utils/config-normalizer.js";
 import { updateCache } from "../core/cache-manager.js";
@@ -13,19 +17,13 @@ import * as logger from "../utils/logger.js";
 const dirMap = new Map<string, NormalizedDirConfig>();
 
 export const generateIndexPlugin = (options: ExporterOptions): any => {
-  // Handle legacy options
   let logLevel = options.logLevel ?? DEFAULT_CONFIG.logLevel;
-  if (options.enableDebuggingVerbose) {
-    logLevel = LogLevel.VERBOSE;
-  } else if (options.enableDebugging) {
-    logLevel = LogLevel.DEBUG;
-  }
-
   // Merge with defaults
   const pluginConfig: Required<PluginConfig> = {
     ...DEFAULT_CONFIG,
     ...options,
     logLevel,
+    mode: options.mode ?? ProcessingMode.ExportsOnly, // Set default mode
   };
 
   // Configure logger
@@ -41,7 +39,7 @@ export const generateIndexPlugin = (options: ExporterOptions): any => {
     configureServer(server) {
       try {
         pluginConfig.dirs.forEach((dirConfigInput) => {
-          const normalizedDirConfig = normalizeDirConfig(dirConfigInput);
+          const normalizedDirConfig = normalizeDirConfig(dirConfigInput, pluginConfig.mode);
           const dirPath = path.resolve(process.cwd(), normalizedDirConfig.dir);
 
           if (!fs.existsSync(dirPath)) {
@@ -59,7 +57,9 @@ export const generateIndexPlugin = (options: ExporterOptions): any => {
           logger.fileEvent(action, filePath);
 
           if (isGeneratedIndexFile(filePath, dirMap)) {
-            logger.verbose(`🚫 Ignoring plugin-generated index.ts: ${logger.getRelativePath(filePath)}`);
+            logger.verbose(
+              `🚫 Ignoring plugin-generated index.ts: ${logger.getRelativePath(filePath)}`
+            );
             return;
           }
 
@@ -86,9 +86,9 @@ export const generateIndexPlugin = (options: ExporterOptions): any => {
         logger.info("🏗️ Build started - processing directories...");
 
         pluginConfig.dirs.forEach((dirConfigInput) => {
-          const normalizedDirConfig = normalizeDirConfig(dirConfigInput);
+          const normalizedDirConfig = normalizeDirConfig(dirConfigInput, pluginConfig.mode);
           const dirPath = path.resolve(process.cwd(), normalizedDirConfig.dir);
-          
+
           if (fs.existsSync(dirPath)) {
             processDirectory(dirPath, pluginConfig, normalizedDirConfig);
           } else {
@@ -102,4 +102,4 @@ export const generateIndexPlugin = (options: ExporterOptions): any => {
       }
     },
   };
-}; 
+};

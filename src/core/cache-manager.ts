@@ -1,6 +1,11 @@
 import path from "node:path";
 import { FileExportInfo, FileEventAction, NormalizedDirConfig } from "../types/index.js";
-import { shouldIncludeFile, shouldRunImport, isValidFile } from "../utils/file-validation.js";
+import {
+  shouldIncludeFile,
+  shouldIncludeAsImport,
+  shouldGenerateSideEffectImport,
+  isValidFile,
+} from "../utils/file-validation.js";
 import { analyzeExports } from "./export-analyzer.js";
 import * as logger from "../utils/logger.js";
 
@@ -15,21 +20,20 @@ export const updateCache = (
   config: { extensions: string[] },
   dirConfig: NormalizedDirConfig
 ) => {
-  if (!shouldIncludeFile(filePath, dirPath, dirConfig)) {
+  if (
+    !isValidFile(filePath, config.extensions) ||
+    !shouldIncludeFile(filePath, dirPath, dirConfig)
+  ) {
+    logger.verbose(`⚡ Skipping file (not valid or included): ${logger.getRelativePath(filePath)}`);
     return;
   }
 
   const currentCache = cache.get(dirPath) || [];
-  logger.cacheUpdate(action, filePath, currentCache.length);
 
   if (action === "unlink") {
-    const newCache = currentCache.filter((f) => f.absolutePath !== filePath);
-    cache.set(dirPath, newCache);
+    const filteredCache = currentCache.filter((f) => f.absolutePath !== filePath);
+    cache.set(dirPath, filteredCache);
     logger.verbose(`🗑️ Removed from cache: ${logger.getRelativePath(filePath)}`);
-    return;
-  }
-
-  if (!isValidFile(filePath, config.extensions)) {
     return;
   }
 
@@ -37,7 +41,22 @@ export const updateCache = (
     const { hasDefault, hasNamed } = analyzeExports(filePath);
     const relativePath = path.relative(dirPath, filePath).replace(/\\/g, "/");
     const baseName = path.basename(relativePath).replace(/\.[^/.]+$/, "");
-    const isRunImport = shouldRunImport(filePath, dirPath, dirConfig) && !hasDefault && !hasNamed;
+
+    // Check if this file should be included based on the processing mode
+    if (!shouldIncludeAsImport(hasDefault, hasNamed, dirConfig.mode)) {
+      // Remove from cache if it exists but shouldn't be included anymore
+      const existingIndex = currentCache.findIndex((f) => f.absolutePath === filePath);
+      if (existingIndex >= 0) {
+        currentCache.splice(existingIndex, 1);
+        cache.set(dirPath, currentCache);
+        logger.verbose(
+          `🗑️ Removed from cache (mode exclusion): ${logger.getRelativePath(filePath)}`
+        );
+      }
+      return;
+    }
+
+    const shouldImport = shouldGenerateSideEffectImport(hasDefault, hasNamed, dirConfig.mode);
 
     const existingIndex = currentCache.findIndex((f) => f.absolutePath === filePath);
     const fileInfo: FileExportInfo = {
@@ -46,13 +65,17 @@ export const updateCache = (
       baseName,
       hasDefault,
       hasNamed,
-      isRunImport,
+      shouldImport,
     };
 
     if (action === "change") {
       if (existingIndex >= 0) {
         const existing = currentCache[existingIndex];
-        if (existing.hasDefault === hasDefault && existing.hasNamed === hasNamed && existing.isRunImport === isRunImport) {
+        if (
+          existing.hasDefault === hasDefault &&
+          existing.hasNamed === hasNamed &&
+          existing.shouldImport === shouldImport
+        ) {
           logger.verbose(`⚡ No export changes detected for: ${logger.getRelativePath(filePath)}`);
           return;
         }
@@ -73,4 +96,9 @@ export const updateCache = (
   } catch (error) {
     logger.error(`Failed to update cache for ${logger.getRelativePath(filePath)}: ${error}`);
   }
-}; 
+};
+
+export const clearCache = () => {
+  cache.clear();
+  logger.verbose("🧹 Cache cleared");
+};

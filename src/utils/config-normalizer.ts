@@ -1,12 +1,15 @@
-import { DirConfig, NormalizedDirConfig } from "../types/index.js";
+import { DirConfig, NormalizedDirConfig, ProcessingMode } from "../types/index.js";
 
-export const normalizeDirConfig = (dirConfig: string | DirConfig): NormalizedDirConfig => {
+export const normalizeDirConfig = (
+  dirConfig: string | DirConfig,
+  globalMode: ProcessingMode = ProcessingMode.ExportsOnly
+): NormalizedDirConfig => {
   if (typeof dirConfig === "string") {
     return {
       dir: dirConfig,
       match: ["**/*"], // match everything by default
       exclude: [], // exclude nothing by default
-      run: [], // no run imports by default
+      mode: globalMode, // use global default mode
     };
   }
 
@@ -19,6 +22,6 @@ export const normalizeDirConfig = (dirConfig: string | DirConfig): NormalizedDir
     dir: dirConfig.dir,
     match: dirConfig.match ? normalizePatterns(dirConfig.match) : ["**/*"],
     exclude: normalizePatterns(dirConfig.exclude),
-    run: normalizePatterns(dirConfig.run),
+    mode: dirConfig.mode ?? globalMode, // use directory-specific mode or global default
   };
-}; 
+};

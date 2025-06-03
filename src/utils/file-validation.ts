@@ -1,6 +1,6 @@
 import path from "node:path";
 import { minimatch } from "minimatch";
-import { NormalizedDirConfig } from "../types/index.js";
+import { NormalizedDirConfig, ProcessingMode } from "../types/index.js";
 import * as logger from "./logger.js";
 
 export const shouldIncludeFile = (
@@ -8,33 +8,36 @@ export const shouldIncludeFile = (
   baseDirPath: string,
   config: NormalizedDirConfig
 ): boolean => {
-  // Get relative path from the base directory
   const relativePath = path.relative(baseDirPath, filePath).replace(/\\/g, "/");
 
-  // Check exclusion patterns first
-  if (config.exclude.length > 0) {
-    const isExcluded = config.exclude.some((pattern) => {
-      try {
-        const isMatch = minimatch(relativePath, pattern);
-        if (isMatch) {
-          logger.verbose(`🚫 File excluded by pattern "${pattern}": ${logger.getRelativePath(filePath)}`);
-        }
-        return isMatch;
-      } catch (error) {
-        logger.warn(`Invalid exclusion pattern "${pattern}": ${error}`);
-        return false;
+  // Check exclude patterns first (they take precedence)
+  const isExcluded = config.exclude.some((pattern) => {
+    try {
+      const isMatch = minimatch(relativePath, pattern);
+      if (isMatch) {
+        logger.verbose(
+          `🚫 File excluded by pattern "${pattern}": ${logger.getRelativePath(filePath)}`
+        );
       }
-    });
-
-    if (isExcluded) {
+      return isMatch;
+    } catch (error) {
+      logger.warn(`Invalid exclude pattern "${pattern}": ${error}`);
       return false;
     }
-  }
+  });
 
-  // Check inclusion patterns
+  if (isExcluded) return false;
+
+  // Check include patterns
   const isIncluded = config.match.some((pattern) => {
     try {
-      return minimatch(relativePath, pattern);
+      const isMatch = minimatch(relativePath, pattern);
+      if (isMatch) {
+        logger.verbose(
+          `✅ File matched by pattern "${pattern}": ${logger.getRelativePath(filePath)}`
+        );
+      }
+      return isMatch;
     } catch (error) {
       logger.warn(`Invalid match pattern "${pattern}": ${error}`);
       return false;
@@ -48,27 +51,56 @@ export const shouldIncludeFile = (
   return isIncluded;
 };
 
-export const shouldRunImport = (
-  filePath: string,
-  baseDirPath: string,
-  config: NormalizedDirConfig
+export const shouldIncludeAsImport = (
+  hasDefault: boolean,
+  hasNamed: boolean,
+  mode: ProcessingMode
 ): boolean => {
-  if (config.run.length === 0) return false;
+  const hasExports = hasDefault || hasNamed;
 
-  const relativePath = path.relative(baseDirPath, filePath).replace(/\\/g, "/");
+  switch (mode) {
+    case ProcessingMode.ExportsOnly:
+      // Only include files that have exports
+      return hasExports;
 
-  return config.run.some((pattern) => {
-    try {
-      const isMatch = minimatch(relativePath, pattern);
-      if (isMatch) {
-        logger.verbose(`🔄 File marked for run import by pattern "${pattern}": ${logger.getRelativePath(filePath)}`);
-      }
-      return isMatch;
-    } catch (error) {
-      logger.warn(`Invalid run pattern "${pattern}": ${error}`);
+    case ProcessingMode.ExportsAndImports:
+      // Include all files - files without exports become side-effect imports
+      return true;
+
+    case ProcessingMode.ImportAll:
+      // Include all files - files without exports become side-effect imports
+      return true;
+
+    default:
+      logger.warn(`Unknown processing mode: ${mode}, defaulting to ExportsOnly`);
+      return hasExports;
+  }
+};
+
+export const shouldGenerateSideEffectImport = (
+  hasDefault: boolean,
+  hasNamed: boolean,
+  mode: ProcessingMode
+): boolean => {
+  const hasExports = hasDefault || hasNamed;
+
+  switch (mode) {
+    case ProcessingMode.ExportsOnly:
+      // Never generate side-effect imports in exports-only mode
       return false;
-    }
-  });
+
+    case ProcessingMode.ExportsAndImports:
+      // Generate side-effect imports for files without exports
+      return !hasExports;
+
+    case ProcessingMode.ImportAll:
+      // Generate side-effect imports for files without exports
+      return !hasExports;
+
+    default:
+      logger.warn(`Unknown processing mode: ${mode}, defaulting to no side-effect imports`);
+      return false;
+  }
 };
 
 export const isValidFile = (filePath: string, extensions: string[]): boolean => {
@@ -88,9 +120,12 @@ export const isValidFile = (filePath: string, extensions: string[]): boolean => 
   return true;
 };
 
-export const isGeneratedIndexFile = (filePath: string, dirMap: Map<string, NormalizedDirConfig>): boolean => {
+export const isGeneratedIndexFile = (
+  filePath: string,
+  dirMap: Map<string, NormalizedDirConfig>
+): boolean => {
   return Array.from(dirMap.keys()).some((resolvedDir) => {
     const generatedIndex = path.join(resolvedDir, "index.ts");
     return filePath === generatedIndex;
   });
-}; 
+};

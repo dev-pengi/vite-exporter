@@ -1,4 +1,4 @@
-import { PluginConfig } from "../types/index.js";
+import { PluginConfig, ProcessingMode } from "../types/index.js";
 import { LogLevel } from "../utils/logger.js";
 
 // Default configuration
@@ -7,4 +7,5 @@ export const DEFAULT_CONFIG: Required<Omit<PluginConfig, "dirs">> = {
   debounceMs: 2000,
   logLevel: LogLevel.INFO,
   enableTimestamp: true,
-}; 
+  mode: ProcessingMode.ExportsOnly,
+};
