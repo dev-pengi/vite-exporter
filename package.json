@@ -3,18 +3,12 @@
   "version": "2.0.0",
   "type": "module",
   "description": "A vite plugin that auto-generate index files to make exports/imports more readable and centralized",
-  "author": [{"name":"Seif Eddine Haboul"},{"name":"hexxt"}],
-  "publishConfig": {
-    "access": "public"
-  },
+  "author": "Seif Eddine Haboul, hexxt",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/dev-pengi/vite-exporter"
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "tsc -p .",
     "prepare": "yarn build",
@@ -22,14 +16,19 @@
     "release": "changeset publish"
   },
   "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
-    }
+    "import": "./dist/esm/index.js",
+    "require": "./dist/cjs/index.js",
+    "types": "./dist/types/index.d.ts"
   },
-  "main": "dist/index.js",
-  "module": "dist/index.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
   "types": "dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@changesets/cli": "^2.18.0",
     "@types/node": "^22.0.0",
