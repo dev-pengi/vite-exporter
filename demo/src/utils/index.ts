@@ -13,6 +13,9 @@
 
 
 
-export * from './text.ts';
+// Default and named exports
 export { default as time } from './time.ts';
 export * from './time.ts';
+
+// Named exports only
+export * from './text.ts';

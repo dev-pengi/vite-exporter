@@ -1,6 +1,6 @@
 {
   "name": "vite-exporter",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "module",
   "description": "A vite plugin that auto-generate index files to make exports/imports more readable and centralized",
   "author": "Sifedine Haboul, hexxt",
