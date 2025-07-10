@@ -16,20 +16,46 @@ export const generateIndexFromCache = (dirPath: string) => {
       return;
     }
 
-    const exports = fileInfos
-      .map(({ relativePath, baseName, hasDefault, hasNamed, shouldImport }) => {
-        if (shouldImport) {
-          return `import './${relativePath}';`;
-        } else if (hasDefault && hasNamed) {
-          return `export { default as ${baseName} } from './${relativePath}';\nexport * from './${relativePath}';`;
-        } else if (hasDefault) {
-          return `export { default as ${baseName} } from './${relativePath}';`;
-        } else if (hasNamed) {
-          return `export * from './${relativePath}';`;
-        }
-        return `// No exports found in './${relativePath}'`;
-      })
-      .join("\n");
+    const defaultOnly = fileInfos
+      .filter(({ hasDefault, hasNamed }) => hasDefault && !hasNamed)
+      .sort((a, b) => a.baseName.localeCompare(b.baseName))
+      .map(
+        ({ relativePath, baseName }) =>
+          `export { default as ${baseName} } from './${relativePath}';`,
+      );
+
+    const namedOnly = fileInfos
+      .filter(({ hasDefault, hasNamed }) => !hasDefault && hasNamed)
+      .sort((a, b) => a.baseName.localeCompare(b.baseName))
+      .map(({ relativePath }) => `export * from './${relativePath}';`);
+
+    const both = fileInfos
+      .filter(({ hasDefault, hasNamed }) => hasDefault && hasNamed)
+      .sort((a, b) => a.baseName.localeCompare(b.baseName))
+      .map(
+        ({ relativePath, baseName }) =>
+          `export { default as ${baseName} } from './${relativePath}';\nexport * from './${relativePath}';`,
+      );
+
+    let exports = "";
+    if (both.length > 0) {
+      exports += "// Default and named exports\n";
+      exports += both.join("\n");
+      if (defaultOnly.length > 0 || namedOnly.length > 0) {
+        exports += "\n";
+      }
+    }
+    if (defaultOnly.length > 0) {
+      exports += "\n// Default exports only\n";
+      exports += defaultOnly.join("\n");
+      if (namedOnly.length > 0) {
+        exports += "\n";
+      }
+    }
+    if (namedOnly.length > 0) {
+      exports += "\n// Named exports only\n";
+      exports += namedOnly.join("\n");
+    }
 
     const indexPath = path.join(dirPath, "index.ts");
     fs.writeFileSync(indexPath, HEADER + exports);
